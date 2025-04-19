@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelime Oyunu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            touch-action: manipulation;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .light { background-color: #f0f0f0; color: #333; }
+        .dark { background-color: #333; color: #fff; }
+        .dark #game-container, .dark #settings-container, .dark #how-to-play-container { background-color: #444; }
+        .colorful { background: linear-gradient(135deg, #ffecd2, #fcb69f); color: #333; }
+        #settings-container, #game-container, #how-to-play-container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        #how-to-play-container {
+            display: none;
+            width: 90%;
+            max-width: 600px;
+        }
+        #game-container {
+            position: relative;
+            display: none;
+            width: 90%;
+            max-width: 800px;
+        }
+        #kelime {
+            font-size: 3em;
+            margin: 20px 0;
+            transition: color 0.3s ease;
+            word-break: break-word;
+            animation: slideIn 0.3s ease-in-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .correct { color: green !important; animation: shake 0.2s; }
+        .incorrect { color: red !important; animation: shake 0.2s; }
+        .pass { color: blue !important; animation: shake 0.2s; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+        }
+        #correct-score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 1.2em;
+            color: green;
+        }
+        #incorrect-score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.2em;
+            color: red;
+        }
+        #pass-count {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 1.2em;
+            color: blue;
+        }
+        #timer {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        #timer.low {
+            color: red;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+        #progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+            margin-bottom: 20px;
+        }
+        #progress {
+            width: 100%;
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s;
+        }
+        #game-over {
+            font-size: 1.5em;
+            display: none;
+            margin-top: 20px;
+        }
+        #replay-button, #clear-history-button, #how-to-play-button, #back-to-settings-button, #pause-button, #quick-start-button, #export-button {
+            margin-top: 10px;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        #replay-button:hover, #clear-history-button:hover, #how-to-play-button:hover, #back-to-settings-button:hover, #pause-button:hover, #quick-start-button:hover, #export-button:hover {
+            background-color: #45a049;
+        }
+        #fullscreen-button {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #fullscreen-button:hover {
+            background-color: #45a049;
+        }
+        #duration-select, #kelime-count-select, #pass-count-select, #sound-toggle, #difficulty-select, #sound-set-select, #theme-select {
+            margin: 10px 0;
+        }
+        #start-button {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #start-button:hover {
+            background-color: #45a049;
+        }
+        #history-table {
+            margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #history-table th, #history-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        #history-table th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .correct { color: green !important; font-weight: bold; }
+        .incorrect, .pass { color: red !important; font-weight: bold; }
+        #touch-controls {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            right: 0;
+            height: 100px;
+            display: none;
+        }
+        #touch-left, #touch-right, #touch-middle {
+            position: absolute;
+            height: 100%;
+            top: 0;
+            transition: background 0.3s;
+        }
+        #touch-left { left: 0; width: 33%; background: green; opacity: 0.2; }
+        #touch-right { right: 0; width: 33%; background: red; opacity: 0.2; }
+        #touch-middle { left: 33%; width: 34%; background: blue; opacity: 0.2; }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        #footer {
+            position: fixed;
+            bottom: 10px;
+            text-align: center;
+            width: 100%;
+            font-size: 0.9em;
+            color: #555;
+        }
+        @media (max-width: 600px) {
+            #touch-controls { display: block; }
+            #game-container { width: 100%; }
+            #kelime { font-size: 2.5em; }
+        }
+    </style>
+</head>
+<body class="light">
+    <div id="settings-container">
+        <h2>Ayarlar</h2>
+        <div>
+            <label for="duration-select">Toplam Süre (saniye):</label><br>
+            <select id="duration-select"></select>
+        </div>
+        <div>
+            <label for="kelime-count-select">Kelime Sayısı:</label><br>
+            <select id="kelime-count-select"></select>
+        </div>
+        <div>
+            <label for="pass-count-select">Pas Sayısı:</label><br>
+            <select id="pass-count-select"></select>
+        </div>
+        <div>
+            <label for="difficulty-select">Zorluk Seviyesi:</label><br>
+            <select id="difficulty-select">
+                <option value="simple">Basit</option>
+                <option value="medium">Orta</option>
+                <option value="hard">Zor</option>
+                <option value="random" selected>Rastgele</option>
+            </select>
+        </div>
+        <div>
+            <label for="correct-key">Doğru Tuşu:</label><br>
+            <input type="text" id="correct-key" maxlength="1" placeholder="A" value="A">
+        </div>
+        <div>
+            <label for="incorrect-key">Yanlış Tuşu:</label><br>
+            <input type="text" id="incorrect-key" maxlength="1" placeholder="L" value="L">
+        </div>
+        <div>
+            <label for="pass-key">Pas Tuşu:</label><br>
+            <input type="text" id="pass-key" maxlength="1" placeholder="Boşluk" value=" ">
+        </div>
+        <div>
+            <label for="sound-toggle">Ses:</label><br>
+            <input type="checkbox" id="sound-toggle" checked>
+        </div>
+        <div>
+            <label for="sound-set-select">Ses Seti:</label><br>
+            <select id="sound-set-select">
+                <option value="classic">Klasik</option>
+                <option value="fun">Eğlenceli</option>
+                <option value="minimal">Minimal</option>
+            </select>
+        </div>
+        <div>
+            <label for="theme-select">Tema:</label><br>
+            <select id="theme-select">
+                <option value="light">Açık</option>
+                <option value="dark">Koyu</option>
+                <option value="colorful">Renkli</option>
+            </select>
+        </div>
+        <button id="quick-start-button">Hızlı Başlat</button>
+        <button id="clear-history-button">Geçmişi Sil</button>
+        <button id="export-button">Sonuçları Dışa Aktar</button>
+        <button id="how-to-play-button">Nasıl Oynanır?</button>
+        <button id="start-button">Oyunu Başlat</button>
+    </div>
+    <div id="how-to-play-container">
+        <h2>Nasıl Oynanır?</h2>
+        <p>
+            Bu oyun, önceden tanımlı kelimelerle oynanan bir bilgi yarışmasıdır. Aşağıda oyunun oynanışı, puanlama sistemi ve kontroller açıklanmıştır:
+        </p>
+        <h3>Oynanış</h3>
+        <ul>
+            <li>Ayarlar sayfasında toplam süreyi (10-300 saniye), kelime sayısını (10-500), pas hakkını (1-50) ve zorluk seviyesini seçin.</li>
+            <li>Doğru, yanlış ve pas için tuşları özelleştirin (varsayılan: A, L, Boşluk).</li>
+            <li>Oyun başladığında kelimeler sırayla gösterilir. Süre bitene veya kelimeler tükenene kadar oynayın.</li>
+            <li>Tam ekran modunu veya duraklatma özelliğini kullanabilirsiniz.</li>
+        </ul>
+        <h3>Puanlama</h3>
+        <ul>
+            <li><span style="color: green;">Doğru cevap</span>: Basit (+1), Orta (+2), Zor (+3).</li>
+            <li><span style="color: green;">Hızlı cevap</span> (2 saniye içinde): +0.5 puan.</li>
+            <li><span style="color: green;">5 doğru streak</span>: +5 puan.</li>
+            <li><span style="color: red;">Yanlış cevap</span>: -1 puan.</li>
+            <li><span style="color: red;">Pas</span>: -0.5 puan.</li>
+        </ul>
+        <h3>Kontroller</h3>
+        <ul>
+            <li><b>Doğru</b>: Varsayılan A tuşu. Kelime yeşile döner.</li>
+            <li><b>Yanlış</b>: Varsayılan L tuşu. Kelime kırmızıya döner.</li>
+            <li><b>Pas</b>: Varsayılan Boşluk tuşu. Kelime maviye döner.</li>
+            <li><b>Mobil</b>: Ekranın solu (doğru), sağı (yanlış), ortası (pas).</li>
+        </ul>
+        <button id="back-to-settings-button">Ayarlar’a Dön</button>
+    </div>
+    <div id="game-container">
+        <div id="timer">Süre: 100</div>
+        <div id="progress-bar"><div id="progress"></div></div>
+        <div id="correct-score">Doğru: 0</div>
+        <div id="incorrect-score">Yanlış: 0</div>
+        <div id="pass-count">Pas: 10</div>
+        <div id="kelime"></div>
+        <button id="pause-button">Duraklat</button>
+        <button id="fullscreen-button">Tam Ekran</button>
+        <div id="touch-controls">
+            <div id="touch-left"></div>
+            <div id="touch-middle"></div>
+            <div id="touch-right"></div>
+        </div>
+        <div id="game-over"></div>
+    </div>
+    <div id="loading">Yükleniyor...</div>
+    <div id="footer">Bu Oyun İngilizce Öğretmeni Abdullah AYDINHAN tarafından hazırlanmıştır.</div>
+
+    <script>
+        // Hardcoded JSON data for kelimeler
+        const kelimeData = [
+            {"kelime": "new", "kategori": "simple", "tanim": "yeni"},
+  {"kelime": "sea", "kategori": "simple", "tanim": "deniz"},
+  {"kelime": "age", "kategori": "simple", "tanim": "yaş"},
+  {"kelime": "bed", "kategori": "simple", "tanim": "yatak"},
+  {"kelime": "day", "kategori": "simple", "tanim": "gün"},
+  {"kelime": "get", "kategori": "simple", "tanim": "elde etmek"},
+  {"kelime": "bad", "kategori": "simple", "tanim": "kötü"},
+  {"kelime": "buy", "kategori": "simple", "tanim": "satın almak"},
+  {"kelime": "out", "kategori": "simple", "tanim": "dışarı"},
+  {"kelime": "may", "kategori": "simple", "tanim": "mayıs"},
+  {"kelime": "tea", "kategori": "simple", "tanim": "çay"},
+  {"kelime": "hot", "kategori": "simple", "tanim": "sıcak"},
+  {"kelime": "job", "kategori": "simple", "tanim": "iş"},
+  {"kelime": "put", "kategori": "simple", "tanim": "koymak"},
+  {"kelime": "air", "kategori": "simple", "tanim": "hava"},
+  {"kelime": "art", "kategori": "simple", "tanim": "sanat"},
+  {"kelime": "gym", "kategori": "medium", "tanim": "spor salonu"},
+  {"kelime": "lab", "kategori": "medium", "tanim": "laboratuvar"},
+  {"kelime": "joy", "kategori": "hard", "tanim": "neşe"},
+  {"kelime": "mud", "kategori": "hard", "tanim": "çamur"},
+  {"kelime": "bar", "kategori": "simple", "tanim": "çubuk"},
+  {"kelime": "ice", "kategori": "simple", "tanim": "buz"},
+  {"kelime": "shop", "kategori": "simple", "tanim": "mağaza"},
+  {"kelime": "work", "kategori": "simple", "tanim": "iş"},
+  {"kelime": "away", "kategori": "simple", "tanim": "uzak"},
+  {"kelime": "next", "kategori": "simple", "tanim": "Sonraki"},
+  {"kelime": "poor", "kategori": "simple", "tanim": "fakir"},
+  {"kelime": "find", "kategori": "simple", "tanim": "bulmak"},
+  {"kelime": "hear", "kategori": "simple", "tanim": "duymak"},
+  {"kelime": "look", "kategori": "simple", "tanim": "Bakmak"},
+  {"kelime": "draw", "kategori": "simple", "tanim": "çizmek"},
+  {"kelime": "fast", "kategori": "simple", "tanim": "hızlı"},
+  {"kelime": "come", "kategori": "simple", "tanim": "Gelmek"},
+  {"kelime": "late", "kategori": "simple", "tanim": "geç"},
+  {"kelime": "time", "kategori": "simple", "tanim": "zaman"},
+  {"kelime": "room", "kategori": "simple", "tanim": "oda"},
+  {"kelime": "feel", "kategori": "simple", "tanim": "hissetmek"},
+  {"kelime": "very", "kategori": "simple", "tanim": "çok"},
+  {"kelime": "well", "kategori": "simple", "tanim": "Peki"},
+  {"kelime": "give", "kategori": "simple", "tanim": "vermek"},
+  {"kelime": "year", "kategori": "simple", "tanim": "yıl"},
+  {"kelime": "have", "kategori": "simple", "tanim": "sahip olmak"},
+  {"kelime": "meet", "kategori": "simple", "tanim": "tanışmak"},
+  {"kelime": "test", "kategori": "simple", "tanim": "test"},
+  {"kelime": "play", "kategori": "simple", "tanim": "oynamak"},
+  {"kelime": "show", "kategori": "simple", "tanim": "göstermek"},
+  {"kelime": "salt", "kategori": "simple", "tanim": "tuz"},
+  {"kelime": "life", "kategori": "simple", "tanim": "hayat"},
+  {"kelime": "bean", "kategori": "simple", "tanim": "fasulye"},
+  {"kelime": "song", "kategori": "simple", "tanim": "şarkı"},
+  {"kelime": "sell", "kategori": "simple", "tanim": "satmak"},
+  {"kelime": "TRUE", "kategori": "simple", "tanim": "True"},
+  {"kelime": "bill", "kategori": "simple", "tanim": "fatura"},
+  {"kelime": "busy", "kategori": "simple", "tanim": "Meşgul"},
+  {"kelime": "fair", "kategori": "simple", "tanim": "adil"},
+  {"kelime": "join", "kategori": "simple", "tanim": "katılmak"},
+  {"kelime": "keep", "kategori": "simple", "tanim": "kale"},
+  {"kelime": "move", "kategori": "simple", "tanim": "taşınmak"},
+  {"kelime": "trip", "kategori": "simple", "tanim": "seyahat"},
+  {"kelime": "fire", "kategori": "simple", "tanim": "ateş"},
+  {"kelime": "form", "kategori": "simple", "tanim": "biçim"},
+  {"kelime": "news", "kategori": "simple", "tanim": "haberler"},
+  {"kelime": "free", "kategori": "simple", "tanim": "özgür"},
+  {"kelime": "high", "kategori": "simple", "tanim": "yüksek"},
+  {"kelime": "lend", "kategori": "simple", "tanim": "ödünç vermek"},
+  {"kelime": "lift", "kategori": "simple", "tanim": "kaldırmak"},
+  {"kelime": "lose", "kategori": "simple", "tanim": "kaybetmek"},
+  {"kelime": "hope", "kategori": "simple", "tanim": "umut"},
+  {"kelime": "miss", "kategori": "simple", "tanim": "kayıp"},
+  {"kelime": "pass", "kategori": "simple", "tanim": "geçmek"},
+  {"kelime": "exam", "kategori": "simple", "tanim": "sınav"},
+  {"kelime": "pull", "kategori": "simple", "tanim": "çekmek"},
+  {"kelime": "view", "kategori": "simple", "tanim": "görüş"},
+  {"kelime": "ship", "kategori": "simple", "tanim": "gemi"},
+  {"kelime": "sink", "kategori": "simple", "tanim": "atmak"},
+  {"kelime": "army", "kategori": "medium", "tanim": "ordu"},
+  {"kelime": "care", "kategori": "medium", "tanim": "bakım"},
+  {"kelime": "live", "kategori": "medium", "tanim": "canlı"},
+  {"kelime": "land", "kategori": "medium", "tanim": "kara"},
+  {"kelime": "rail", "kategori": "medium", "tanim": "demiryolu"},
+  {"kelime": "folk", "kategori": "medium", "tanim": "halk"},
+  {"kelime": "hire", "kategori": "medium", "tanim": "kiralamak"},
+  {"kelime": "lock", "kategori": "medium", "tanim": "kilit"},
+  {"kelime": "mess", "kategori": "medium", "tanim": "karışıklık"},
+  {"kelime": "pick", "kategori": "medium", "tanim": "seçmek"},
+  {"kelime": "port", "kategori": "medium", "tanim": "liman"},
+  {"kelime": "rule", "kategori": "medium", "tanim": "kural"},
+  {"kelime": "pole", "kategori": "hard", "tanim": "kutup"},
+  {"kelime": "holi", "kategori": "hard", "tanim": "bayram"},
+  {"kelime": "obey", "kategori": "hard", "tanim": "itaat etmek"},
+  {"kelime": "soil", "kategori": "hard", "tanim": "toprak"},
+  {"kelime": "cake", "kategori": "simple", "tanim": "kek"},
+  {"kelime": "card", "kategori": "simple", "tanim": "kart"},
+  {"kelime": "door", "kategori": "simple", "tanim": "kapı"},
+  {"kelime": "food", "kategori": "simple", "tanim": "yiyecek"},
+  {"kelime": "home", "kategori": "simple", "tanim": "Ev"},
+  {"kelime": "love", "kategori": "simple", "tanim": "Aşk"},
+  {"kelime": "make", "kategori": "simple", "tanim": "yapmak"},
+  {"kelime": "money", "kategori": "simple", "tanim": "para"},
+  {"kelime": "month", "kategori": "simple", "tanim": "ay"},
+  {"kelime": "paint", "kategori": "simple", "tanim": "boyamak"},
+  {"kelime": "pizza", "kategori": "simple", "tanim": "pizza"},
+  {"kelime": "visit", "kategori": "simple", "tanim": "ziyaret etmek"},
+  {"kelime": "enjoy", "kategori": "simple", "tanim": "Eğlence"},
+  {"kelime": "happy", "kategori": "simple", "tanim": "mutlu"},
+  {"kelime": "learn", "kategori": "simple", "tanim": "öğrenmek"},
+  {"kelime": "often", "kategori": "simple", "tanim": "sıklıkla"},
+  {"kelime": "carry", "kategori": "simple", "tanim": "taşımak"},
+  {"kelime": "catch", "kategori": "simple", "tanim": "yakalamak"},
+  {"kelime": "place", "kategori": "simple", "tanim": "yer"},
+  {"kelime": "group", "kategori": "simple", "tanim": "grup"},
+  {"kelime": "class", "kategori": "simple", "tanim": "sınıf"},
+  {"kelime": "close", "kategori": "simple", "tanim": "kapalı"},
+  {"kelime": "ready", "kategori": "simple", "tanim": "hazır"},
+  {"kelime": "party", "kategori": "simple", "tanim": "parti"},
+  {"kelime": "horse", "kategori": "simple", "tanim": "atış"},
+  {"kelime": "leave", "kategori": "simple", "tanim": "ayrılmak"},
+  {"kelime": "after", "kategori": "simple", "tanim": "sonrasında"},
+  {"kelime": "maths", "kategori": "simple", "tanim": "matematik"},
+  {"kelime": "mouth", "kategori": "simple", "tanim": "ağız"},
+  {"kelime": "never", "kategori": "simple", "tanim": "Asla"},
+  {"kelime": "noise", "kategori": "simple", "tanim": "gürültü"},
+  {"kelime": "plant", "kategori": "simple", "tanim": "bitki"},
+  {"kelime": "right", "kategori": "simple", "tanim": "Sağ"},
+  {"kelime": "sleep", "kategori": "simple", "tanim": "uyumak"},
+  {"kelime": "candy", "kategori": "simple", "tanim": "şeker"},
+  {"kelime": "guest", "kategori": "simple", "tanim": "misafir"},
+  {"kelime": "offer", "kategori": "simple", "tanim": "teklif"},
+  {"kelime": "queen", "kategori": "simple", "tanim": "kraliçe"},
+  {"kelime": "share", "kategori": "simple", "tanim": "paylaşmak"},
+  {"kelime": "throw", "kategori": "simple", "tanim": "fırlatmak"},
+  {"kelime": "alone", "kategori": "simple", "tanim": "yalnız"},
+  {"kelime": "opera", "kategori": "simple", "tanim": "opera"},
+  {"kelime": "laugh", "kategori": "simple", "tanim": "gülmek"},
+  {"kelime": "bring", "kategori": "simple", "tanim": "getirmek"},
+  {"kelime": "heavy", "kategori": "simple", "tanim": "ağır"},
+  {"kelime": "break", "kategori": "simple", "tanim": "kırmak"},
+  {"kelime": "sheet", "kategori": "simple", "tanim": "çarşaf"},
+  {"kelime": "angry", "kategori": "simple", "tanim": "sinirli"},
+  {"kelime": "guide", "kategori": "simple", "tanim": "rehber"},
+  {"kelime": "check", "kategori": "simple", "tanim": "kontrol etmek"},
+  {"kelime": "hurry", "kategori": "simple", "tanim": "acele etmek"},
+  {"kelime": "lucky", "kategori": "simple", "tanim": "şanslı"},
+  {"kelime": "chess", "kategori": "simple", "tanim": "satranç"},
+  {"kelime": "round", "kategori": "simple", "tanim": "yuvarlak"},
+  {"kelime": "stage", "kategori": "simple", "tanim": "sahne"},
+  {"kelime": "serve", "kategori": "simple", "tanim": "sert"},
+  {"kelime": "space", "kategori": "simple", "tanim": "uzay"},
+  {"kelime": "taste", "kategori": "medium", "tanim": "tatmak"},
+  {"kelime": "block", "kategori": "medium", "tanim": "engellemek"},
+  {"kelime": "event", "kategori": "medium", "tanim": "etkinlik"},
+  {"kelime": "crown", "kategori": "medium", "tanim": "taç"},
+  {"kelime": "avoid", "kategori": "medium", "tanim": "kaçınmak"},
+  {"kelime": "death", "kategori": "medium", "tanim": "ölüm"},
+  {"kelime": "cruel", "kategori": "medium", "tanim": "acımasız"},
+  {"kelime": "enemy", "kategori": "medium", "tanim": "düşman"},
+  {"kelime": "coast", "kategori": "medium", "tanim": "sahil"},
+  {"kelime": "ghost", "kategori": "medium", "tanim": "hayalet"},
+  {"kelime": "greet", "kategori": "medium", "tanim": "selamlaşmak"},
+  {"kelime": "rules", "kategori": "medium", "tanim": "tüzük"},
+  {"kelime": "lover", "kategori": "medium", "tanim": "sevgili"},
+  {"kelime": "trick", "kategori": "medium", "tanim": "kandırmak"},
+  {"kelime": "store", "kategori": "medium", "tanim": "mağaza"},
+  {"kelime": "alive", "kategori": "medium", "tanim": "canlı"},
+  {"kelime": "plain", "kategori": "medium", "tanim": "ova"},
+  {"kelime": "reach", "kategori": "medium", "tanim": "ulaşmak"},
+  {"kelime": "ruins", "kategori": "medium", "tanim": "kalıntılar"},
+  {"kelime": "sandy", "kategori": "medium", "tanim": "kumlu"},
+  {"kelime": "score", "kategori": "medium", "tanim": "Gol"},
+  {"kelime": "shine", "kategori": "medium", "tanim": "parlamak"},
+  {"kelime": "carve", "kategori": "hard", "tanim": "oymak"},
+  {"kelime": "spark", "kategori": "hard", "tanim": "kıvılcım"},
+  {"kelime": "diner", "kategori": "hard", "tanim": "lokanta"},
+  {"kelime": "cheer", "kategori": "hard", "tanim": "tezahürat"},
+  {"kelime": "focus", "kategori": "hard", "tanim": "odak"},
+  {"kelime": "award", "kategori": "hard", "tanim": "ödül"},
+  {"kelime": "cheat", "kategori": "hard", "tanim": "aldatmak"},
+  {"kelime": "grave", "kategori": "hard", "tanim": "mezar"},
+  {"kelime": "flame", "kategori": "hard", "tanim": "alev"},
+  {"kelime": "treat", "kategori": "hard", "tanim": "davranmak"},
+  {"kelime": "joint", "kategori": "hard", "tanim": "eklem yeri"},
+  {"kelime": "means", "kategori": "hard", "tanim": "araç"},
+  {"kelime": "moral", "kategori": "hard", "tanim": "ahlaki"},
+  {"kelime": "renew", "kategori": "hard", "tanim": "yenilemek"},
+  {"kelime": "shell", "kategori": "hard", "tanim": "kabuk"},
+  {"kelime": "shift", "kategori": "hard", "tanim": "vardiya"},
+  {"kelime": "slave", "kategori": "hard", "tanim": "köle"},
+  {"kelime": "apple", "kategori": "simple", "tanim": "elma"},
+  {"kelime": "bread", "kategori": "simple", "tanim": "ekmek"},
+  {"kelime": "dance", "kategori": "simple", "tanim": "dans"},
+  {"kelime": "drink", "kategori": "simple", "tanim": "içmek"},
+  {"kelime": "house", "kategori": "simple", "tanim": "ev"},
+  {"kelime": "light", "kategori": "simple", "tanim": "ışık"},
+  {"kelime": "street", "kategori": "simple", "tanim": "sokak"},
+  {"kelime": "always", "kategori": "simple", "tanim": "Her zaman"},
+  {"kelime": "answer", "kategori": "simple", "tanim": "cevap"},
+  {"kelime": "choose", "kategori": "simple", "tanim": "seçmek"},
+  {"kelime": "doctor", "kategori": "simple", "tanim": "doktor"},
+  {"kelime": "invite", "kategori": "simple", "tanim": "davet etmek"},
+  {"kelime": "winter", "kategori": "simple", "tanim": "kış"},
+  {"kelime": "famous", "kategori": "simple", "tanim": "ünlü"},
+  {"kelime": "friend", "kategori": "simple", "tanim": "arkadaş"},
+  {"kelime": "dinner", "kategori": "simple", "tanim": "akşam yemeği"},
+  {"kelime": "school", "kategori": "simple", "tanim": "okul"},
+  {"kelime": "hungry", "kategori": "simple", "tanim": "aç"},
+  {"kelime": "carpet", "kategori": "simple", "tanim": "halı"},
+  {"kelime": "spring", "kategori": "simple", "tanim": "bahar"},
+  {"kelime": "artist", "kategori": "simple", "tanim": "sanatçı"},
+  {"kelime": "borrow", "kategori": "simple", "tanim": "borç almak"},
+  {"kelime": "except", "kategori": "simple", "tanim": "hariç"},
+  {"kelime": "engine", "kategori": "simple", "tanim": "motor"},
+  {"kelime": "become", "kategori": "simple", "tanim": "haline gelmek"},
+  {"kelime": "follow", "kategori": "simple", "tanim": "takip etmek"},
+  {"kelime": "memory", "kategori": "simple", "tanim": "hafıza"},
+  {"kelime": "action", "kategori": "medium", "tanim": "aksiyon"},
+  {"kelime": "ballet", "kategori": "medium", "tanim": "bale"},
+  {"kelime": "annual", "kategori": "medium", "tanim": "yıllık"},
+  {"kelime": "design", "kategori": "medium", "tanim": "tasarım"},
+  {"kelime": "abroad", "kategori": "medium", "tanim": "yurt dışı"},
+  {"kelime": "appear", "kategori": "medium", "tanim": "belli olmak"},
+  {"kelime": "attack", "kategori": "medium", "tanim": "saldırı"},
+  {"kelime": "behave", "kategori": "medium", "tanim": "davranmak"},
+  {"kelime": "escape", "kategori": "medium", "tanim": "kaçmak"},
+  {"kelime": "fairly", "kategori": "medium", "tanim": "adil bir şekilde"},
+  {"kelime": "powder", "kategori": "medium", "tanim": "toz"},
+  {"kelime": "inform", "kategori": "medium", "tanim": "bilgi vermek"},
+  {"kelime": "permit", "kategori": "medium", "tanim": "izin vermek"},
+  {"kelime": "punish", "kategori": "medium", "tanim": "cezalandırmak"},
+  {"kelime": "rarely", "kategori": "medium", "tanim": "nadiren"},
+  {"kelime": "retire", "kategori": "medium", "tanim": "emekli olmak"},
+  {"kelime": "shadow", "kategori": "medium", "tanim": "gölge"},
+  {"kelime": "lowest", "kategori": "medium", "tanim": "en düşük"},
+  {"kelime": "middle", "kategori": "medium", "tanim": "orta"},
+  {"kelime": "record", "kategori": "medium", "tanim": "kayıt"},
+  {"kelime": "engage", "kategori": "hard", "tanim": "angaje etmek"},
+  {"kelime": "status", "kategori": "hard", "tanim": "durum"},
+  {"kelime": "ritual", "kategori": "hard", "tanim": "ritüel"},
+  {"kelime": "cannon", "kategori": "hard", "tanim": "top"},
+  {"kelime": "alpine", "kategori": "hard", "tanim": "Alp"},
+  {"kelime": "dispel", "kategori": "hard", "tanim": "dağıtmak"},
+  {"kelime": "grocer", "kategori": "hard", "tanim": "bakkal"},
+  {"kelime": "naples", "kategori": "hard", "tanim": "Napoli"},
+  {"kelime": "jereed", "kategori": "hard", "tanim": "cirit"},
+  {"kelime": "martyr", "kategori": "hard", "tanim": "şehit"},
+  {"kelime": "meadow", "kategori": "hard", "tanim": "çayır"},
+  {"kelime": "puppet", "kategori": "hard", "tanim": "kukla"},
+  {"kelime": "belong", "kategori": "hard", "tanim": "ait olmak"},
+  {"kelime": "donate", "kategori": "hard", "tanim": "bağış yapmak"},
+  {"kelime": "exotic", "kategori": "hard", "tanim": "egzotik"},
+  {"kelime": "symbol", "kategori": "hard", "tanim": "sembol"},
+  {"kelime": "seldom", "kategori": "hard", "tanim": "nadiren"},
+  {"kelime": "family", "kategori": "simple", "tanim": "aile"},
+  {"kelime": "flower", "kategori": "simple", "tanim": "çiçek"},
+  {"kelime": "holiday", "kategori": "simple", "tanim": "tatil"},
+  {"kelime": "example", "kategori": "simple", "tanim": "örnek"},
+  {"kelime": "country", "kategori": "simple", "tanim": "ülke"},
+  {"kelime": "travels", "kategori": "simple", "tanim": "seyahatler"},
+  {"kelime": "friends", "kategori": "simple", "tanim": "Arkadaşlar"},
+  {"kelime": "present", "kategori": "simple", "tanim": "Sunmak"},
+  {"kelime": "classes", "kategori": "simple", "tanim": "sınıflar"},
+  {"kelime": "prepare", "kategori": "simple", "tanim": "hazırlanmak"},
+  {"kelime": "amazing", "kategori": "simple", "tanim": "inanılmaz"},
+  {"kelime": "company", "kategori": "simple", "tanim": "şirket"},
+  {"kelime": "discuss", "kategori": "simple", "tanim": "tartışmak"},
+  {"kelime": "explain", "kategori": "simple", "tanim": "açıklamak"},
+  {"kelime": "through", "kategori": "simple", "tanim": "başından sonuna kadar"},
+  {"kelime": "cutting", "kategori": "simple", "tanim": "kesme"},
+  {"kelime": "collect", "kategori": "simple", "tanim": "TOPLAMAK"},
+  {"kelime": "project", "kategori": "simple", "tanim": "proje"},
+  {"kelime": "theatre", "kategori": "simple", "tanim": "tiyatro"},
+  {"kelime": "tourist", "kategori": "simple", "tanim": "turist"},
+  {"kelime": "meeting", "kategori": "simple", "tanim": "toplantı"},
+  {"kelime": "improve", "kategori": "simple", "tanim": "geliştirmek"},
+  {"kelime": "jewelry", "kategori": "simple", "tanim": "takı"},
+  {"kelime": "gallery", "kategori": "medium", "tanim": "galeri"},
+  {"kelime": "perform", "kategori": "medium", "tanim": "rol yapmak"},
+  {"kelime": "approve", "kategori": "medium", "tanim": "onaylamak"},
+  {"kelime": "babysit", "kategori": "medium", "tanim": "bebek bakıcılığı"},
+  {"kelime": "charity", "kategori": "medium", "tanim": "hayır kurumu"},
+  {"kelime": "average", "kategori": "medium", "tanim": "ortalama"},
+  {"kelime": "bravely", "kategori": "medium", "tanim": "cesurca"},
+  {"kelime": "destroy", "kategori": "medium", "tanim": "tahrip etmek"},
+  {"kelime": "explore", "kategori": "medium", "tanim": "keşfetmek"},
+  {"kelime": "eastern", "kategori": "medium", "tanim": "doğu"},
+  {"kelime": "elderly", "kategori": "medium", "tanim": "yaşlı"},
+  {"kelime": "diagram", "kategori": "medium", "tanim": "diyagram"},
+  {"kelime": "forgive", "kategori": "medium", "tanim": "affetmek"},
+  {"kelime": "ancient", "kategori": "medium", "tanim": "antik"},
+  {"kelime": "allowed", "kategori": "medium", "tanim": "izin verilmiş"},
+  {"kelime": "leisure", "kategori": "medium", "tanim": "boş vakit"},
+  {"kelime": "natural", "kategori": "medium", "tanim": "doğal"},
+  {"kelime": "prevent", "kategori": "medium", "tanim": "önlemek"},
+  {"kelime": "private", "kategori": "medium", "tanim": "özel"},
+  {"kelime": "promise", "kategori": "medium", "tanim": "söz"},
+  {"kelime": "respect", "kategori": "medium", "tanim": "Saygı"},
+  {"kelime": "scenery", "kategori": "medium", "tanim": "manzara"},
+  {"kelime": "serious", "kategori": "medium", "tanim": "cidden"},
+  {"kelime": "soldier", "kategori": "medium", "tanim": "asker"},
+  {"kelime": "leather", "kategori": "medium", "tanim": "deri"},
+  {"kelime": "library", "kategori": "medium", "tanim": "kütüphane"},
+  {"kelime": "luggage", "kategori": "medium", "tanim": "bagaj"},
+  {"kelime": "perhaps", "kategori": "medium", "tanim": "belki"},
+  {"kelime": "physics", "kategori": "medium", "tanim": "fizik"},
+  {"kelime": "uniform", "kategori": "medium", "tanim": "üniforma"},
+  {"kelime": "special", "kategori": "medium", "tanim": "özel"},
+  {"kelime": "exhibit", "kategori": "hard", "tanim": "sergilemek"},
+  {"kelime": "conquer", "kategori": "hard", "tanim": "fethetmek"},
+  {"kelime": "pastime", "kategori": "hard", "tanim": "eğlence"},
+  {"kelime": "reunion", "kategori": "hard", "tanim": "yeniden birleşme"},
+  {"kelime": "bonfire", "kategori": "hard", "tanim": "şenlik ateşi"},
+  {"kelime": "lantern", "kategori": "hard", "tanim": "fener"},
+  {"kelime": "bayonet", "kategori": "hard", "tanim": "süngü"},
+  {"kelime": "cuisine", "kategori": "hard", "tanim": "mutfak"},
+  {"kelime": "chinese", "kategori": "hard", "tanim": "Çince"},
+  {"kelime": "citadel", "kategori": "hard", "tanim": "kale"},
+  {"kelime": "florist", "kategori": "hard", "tanim": "çiçekçi"},
+  {"kelime": "archery", "kategori": "hard", "tanim": "okçuluk"},
+  {"kelime": "proverb", "kategori": "hard", "tanim": "atasözü"},
+  {"kelime": "pumpkin", "kategori": "hard", "tanim": "kabak"},
+  {"kelime": "heroine", "kategori": "hard", "tanim": "kadın kahraman"},
+  {"kelime": "marital", "kategori": "hard", "tanim": "evlilik"},
+  {"kelime": "costume", "kategori": "hard", "tanim": "kostüm"},
+  {"kelime": "capture", "kategori": "hard", "tanim": "esir almak"},
+  {"kelime": "feather", "kategori": "hard", "tanim": "tüy"},
+  {"kelime": "wounded", "kategori": "hard", "tanim": "yaralı"},
+  {"kelime": "honesty", "kategori": "hard", "tanim": "dürüstlük"},
+  {"kelime": "sources", "kategori": "hard", "tanim": "kaynaklar"},
+  {"kelime": "nuclear", "kategori": "hard", "tanim": "nükleer"},
+  {"kelime": "nursery", "kategori": "hard", "tanim": "kreş"},
+  {"kelime": "opening", "kategori": "hard", "tanim": "açılış"},
+  {"kelime": "pension", "kategori": "hard", "tanim": "emeklilik"},
+  {"kelime": "planned", "kategori": "hard", "tanim": "planlanmış"},
+  {"kelime": "poverty", "kategori": "hard", "tanim": "yoksulluk"},
+  {"kelime": "computer", "kategori": "simple", "tanim": "bilgisayar"},
+  {"kelime": "homework", "kategori": "simple", "tanim": "Ev ödevi"},
+  {"kelime": "question", "kategori": "simple", "tanim": "soru"},
+  {"kelime": "vacation", "kategori": "simple", "tanim": "tatil"},
+  {"kelime": "language", "kategori": "simple", "tanim": "dil"},
+  {"kelime": "remember", "kategori": "simple", "tanim": "Unutma"},
+  {"kelime": "shopping", "kategori": "simple", "tanim": "alışveriş"},
+  {"kelime": "building", "kategori": "simple", "tanim": "bina"},
+  {"kelime": "calendar", "kategori": "simple", "tanim": "takvim"},
+  {"kelime": "decorate", "kategori": "medium", "tanim": "süslemek"},
+  {"kelime": "discover", "kategori": "medium", "tanim": "keşfetmek"},
+  {"kelime": "festival", "kategori": "medium", "tanim": "festival"},
+  {"kelime": "greeting", "kategori": "medium", "tanim": "selamlama"},
+  {"kelime": "announce", "kategori": "medium", "tanim": "duyurmak"},
+  {"kelime": "approach", "kategori": "medium", "tanim": "yaklaşmak"},
+  {"kelime": "argument", "kategori": "medium", "tanim": "argüman"},
+  {"kelime": "complain", "kategori": "medium", "tanim": "şikayet etmek"},
+  {"kelime": "consider", "kategori": "medium", "tanim": "dikkate almak"},
+  {"kelime": "cultural", "kategori": "medium", "tanim": "kültürel"},
+  {"kelime": "fountain", "kategori": "medium", "tanim": "çeşme"},
+  {"kelime": "promises", "kategori": "medium", "tanim": "vaatler"},
+  {"kelime": "organize", "kategori": "medium", "tanim": "organize etmek"},
+  {"kelime": "peaceful", "kategori": "medium", "tanim": "barışçıl"},
+  {"kelime": "prisoner", "kategori": "medium", "tanim": "mahkum"},
+  {"kelime": "property", "kategori": "medium", "tanim": "mülk"},
+  {"kelime": "relative", "kategori": "medium", "tanim": "akraba"},
+  {"kelime": "reporter", "kategori": "medium", "tanim": "muhabir"},
+  {"kelime": "solution", "kategori": "medium", "tanim": "çözüm"},
+  {"kelime": "motorway", "kategori": "medium", "tanim": "otoyol"},
+  {"kelime": "opposite", "kategori": "medium", "tanim": "zıt"},
+  {"kelime": "disorder", "kategori": "hard", "tanim": "düzensizlik"},
+  {"kelime": "carriage", "kategori": "hard", "tanim": "taşıma"},
+  {"kelime": "rehearse", "kategori": "hard", "tanim": "prova yapmak"},
+  {"kelime": "memorial", "kategori": "hard", "tanim": "anıt"},
+  {"kelime": "bookworm", "kategori": "hard", "tanim": "kitap kurdu"},
+  {"kelime": "biennial", "kategori": "hard", "tanim": "bienal"},
+  {"kelime": "folklore", "kategori": "hard", "tanim": "folklor"},
+  {"kelime": "grooming", "kategori": "hard", "tanim": "bakım"},
+  {"kelime": "sculptor", "kategori": "hard", "tanim": "heykeltıraş"},
+  {"kelime": "workbook", "kategori": "hard", "tanim": "çalışma kitabı"},
+  {"kelime": "homeland", "kategori": "hard", "tanim": "vatan"},
+  {"kelime": "lawgiver", "kategori": "hard", "tanim": "yasa koyucu"},
+  {"kelime": "magician", "kategori": "hard", "tanim": "büyücü"},
+  {"kelime": "memorize", "kategori": "hard", "tanim": "ezberlemek"},
+  {"kelime": "sailboat", "kategori": "hard", "tanim": "yelkenli"},
+  {"kelime": "dialogue", "kategori": "hard", "tanim": "diyalog"},
+  {"kelime": "approval", "kategori": "hard", "tanim": "onay"},
+  {"kelime": "cemetery", "kategori": "hard", "tanim": "mezarlık"},
+  {"kelime": "evidence", "kategori": "hard", "tanim": "kanıt"},
+  {"kelime": "facility", "kategori": "hard", "tanim": "tesis"},
+  {"kelime": "seasonal", "kategori": "hard", "tanim": "mevsimsel"},
+  {"kelime": "addicted", "kategori": "hard", "tanim": "bağımlı"},
+  {"kelime": "medieval", "kategori": "hard", "tanim": "ortaçağ"},
+  {"kelime": "optional", "kategori": "hard", "tanim": "isteğe bağlı"},
+  {"kelime": "physical", "kategori": "hard", "tanim": "fiziksel"},
+  {"kelime": "difficult", "kategori": "simple", "tanim": "zor"},
+  {"kelime": "important", "kategori": "simple", "tanim": "önemli"},
+  {"kelime": "sometimes", "kategori": "simple", "tanim": "Bazen"},
+  {"kelime": "chemistry", "kategori": "simple", "tanim": "kimya"},
+  {"kelime": "hopefully", "kategori": "simple", "tanim": "umutla"},
+  {"kelime": "jewellery", "kategori": "simple", "tanim": "mücevher"},
+  {"kelime": "celebrate", "kategori": "medium", "tanim": "kutlamak"},
+  {"kelime": "delicious", "kategori": "medium", "tanim": "lezzetli"},
+  {"kelime": "happiness", "kategori": "medium", "tanim": "mutluluk"},
+  {"kelime": "apologize", "kategori": "medium", "tanim": "özür dilemek"},
+  {"kelime": "departure", "kategori": "medium", "tanim": "kalkış"},
+  {"kelime": "entertain", "kategori": "medium", "tanim": "eğlendirmek"},
+  {"kelime": "attending", "kategori": "medium", "tanim": "katılıyor"},
+  {"kelime": "relatives", "kategori": "medium", "tanim": "akrabalar"},
+  {"kelime": "sculpture", "kategori": "medium", "tanim": "heykel"},
+  {"kelime": "interrupt", "kategori": "medium", "tanim": "yarıda kesmek"},
+  {"kelime": "interview", "kategori": "medium", "tanim": "röportaj"},
+  {"kelime": "introduce", "kategori": "medium", "tanim": "tanıtmak"},
+  {"kelime": "organized", "kategori": "medium", "tanim": "organize edilmiş"},
+  {"kelime": "education", "kategori": "medium", "tanim": "eğitim"},
+  {"kelime": "festivals", "kategori": "medium", "tanim": "festivaller"},
+  {"kelime": "scientist", "kategori": "medium", "tanim": "bilim adamı"},
+  {"kelime": "secondary", "kategori": "medium", "tanim": "ikincil"},
+  {"kelime": "sacrifice", "kategori": "hard", "tanim": "kurban etmek"},
+  {"kelime": "appliance", "kategori": "hard", "tanim": "cihaz"},
+  {"kelime": "itinerary", "kategori": "hard", "tanim": "seyahat planı"},
+  {"kelime": "legendary", "kategori": "hard", "tanim": "efsanevi"},
+  {"kelime": "circulate", "kategori": "hard", "tanim": "dolaşıma sokmak"},
+  {"kelime": "headlight", "kategori": "hard", "tanim": "far"},
+  {"kelime": "infiorata", "kategori": "hard", "tanim": "bilgisizlik"},
+  {"kelime": "streamers", "kategori": "hard", "tanim": "flamalar"},
+  {"kelime": "immovable", "kategori": "hard", "tanim": "taşınmaz"},
+  {"kelime": "mausoleum", "kategori": "hard", "tanim": "türbe"},
+  {"kelime": "community", "kategori": "hard", "tanim": "toplum"},
+  {"kelime": "enjoyment", "kategori": "hard", "tanim": "zevk"},
+  {"kelime": "discovery", "kategori": "hard", "tanim": "keşif"},
+  {"kelime": "tradition", "kategori": "hard", "tanim": "gelenek"},
+  {"kelime": "religious", "kategori": "hard", "tanim": "din"},
+  {"kelime": "household", "kategori": "hard", "tanim": "ev"},
+  {"kelime": "intention", "kategori": "hard", "tanim": "niyet"},
+  {"kelime": "remaining", "kategori": "hard", "tanim": "geriye kalan"},
+  {"kelime": "scheduled", "kategori": "hard", "tanim": "planlanmış"},
+  {"kelime": "chocolate", "kategori": "simple", "tanim": "çikolata"},
+  {"kelime": "activities", "kategori": "simple", "tanim": "faaliyetler"},
+  {"kelime": "dishwasher", "kategori": "medium", "tanim": "bulaşık makinesi"},
+  {"kelime": "calculator", "kategori": "medium", "tanim": "hesap makinesi"},
+  {"kelime": "conclusion", "kategori": "medium", "tanim": "çözüm"},
+  {"kelime": "frequently", "kategori": "medium", "tanim": "sıklıkla"},
+  {"kelime": "importance", "kategori": "medium", "tanim": "önem"},
+  {"kelime": "strawberry", "kategori": "medium", "tanim": "çilek"},
+  {"kelime": "experiment", "kategori": "medium", "tanim": "deney"},
+  {"kelime": "literature", "kategori": "medium", "tanim": "edebiyat"},
+  {"kelime": "permission", "kategori": "medium", "tanim": "izin"},
+  {"kelime": "prediction", "kategori": "medium", "tanim": "tahmin"},
+  {"kelime": "skateboard", "kategori": "medium", "tanim": "kaykay"},
+  {"kelime": "assignment", "kategori": "hard", "tanim": "atama"},
+  {"kelime": "associated", "kategori": "hard", "tanim": "birleşmiş"},
+  {"kelime": "foundation", "kategori": "hard", "tanim": "temel"},
+  {"kelime": "extinguish", "kategori": "hard", "tanim": "söndürmek"},
+  {"kelime": "flintstone", "kategori": "hard", "tanim": "çakmaktaşı"},
+  {"kelime": "lieutenant", "kategori": "hard", "tanim": "teğmen"},
+  {"kelime": "mysterious", "kategori": "hard", "tanim": "gizemli"},
+  {"kelime": "reputation", "kategori": "hard", "tanim": "itibar"},
+  {"kelime": "appointment", "kategori": "simple", "tanim": "randevu"},
+  {"kelime": "comfortable", "kategori": "simple", "tanim": "rahat"},
+  {"kelime": "information", "kategori": "simple", "tanim": "bilgi"},
+  {"kelime": "destination", "kategori": "medium", "tanim": "varış noktası"},
+  {"kelime": "educational", "kategori": "medium", "tanim": "eğitici"},
+  {"kelime": "experiments", "kategori": "medium", "tanim": "deneyler"},
+  {"kelime": "traditional", "kategori": "medium", "tanim": "geleneksel"},
+  {"kelime": "magnificent", "kategori": "medium", "tanim": "muhteşem"},
+  {"kelime": "battlefield", "kategori": "hard", "tanim": "savaş alanı"},
+  {"kelime": "fingerprint", "kategori": "hard", "tanim": "parmak izi"},
+  {"kelime": "participate", "kategori": "hard", "tanim": "katılmak"},
+  {"kelime": "philosopher", "kategori": "hard", "tanim": "filozof"},
+  {"kelime": "socializing", "kategori": "hard", "tanim": "sosyalleşme"},
+  {"kelime": "confirmation", "kategori": "hard", "tanim": "onay"},
+  {"kelime": "disorganized", "kategori": "hard", "tanim": "dağınık"},
+  {"kelime": "granddaughter", "kategori": "simple", "tanim": "torunu"},
+  {"kelime": "entertainment", "kategori": "medium", "tanim": "eğlence"},
+  {"kelime": "neighbourhood", "kategori": "medium", "tanim": "komşu"},
+  {"kelime": "transportation", "kategori": "hard", "tanim": "toplu taşıma"}
+        ];
+
+        let kelimeler = { simple: [], medium: [], hard: [] };
+        let tanımlar = { simple: {}, medium: {}, hard: {} };
+        let oyunKelimeleri = [];
+        let kullanılanKelimeler = { simple: new Set(), medium: new Set(), hard: new Set() };
+        let gameHistory = JSON.parse(localStorage.getItem("gameHistory")) || [];
+        let currentKelimeIndex = 0;
+        let correctCount = { simple: 0, medium: 0, hard: 0 };
+        let incorrectCount = { simple: 0, medium: 0, hard: 0 };
+        let passCount = 10;
+        let initialPassCount = 10;
+        let timeLeft = 100;
+        let timerInterval = null;
+        let soundEnabled = true;
+        let isPaused = false;
+        let streak = 0;
+        let kelimeStartTime = 0;
+        let fastestResponse = Infinity;
+        let missedKelimeler = [];
+        let currentPlayer = 1;
+        let playerScores = { 1: { correct: { simple: 0, medium: 0, hard: 0 }, incorrect: { simple: 0, medium: 0, hard: 0 }, pass: 0, total: 0 } };
+        const settingsContainer = document.getElementById("settings-container");
+        const gameContainer = document.getElementById("game-container");
+        const howToPlayContainer = document.getElementById("how-to-play-container");
+        const kelimeElement = document.getElementById("kelime");
+        const correctScoreElement = document.getElementById("correct-score");
+        const incorrectScoreElement = document.getElementById("incorrect-score");
+        const passCountElement = document.getElementById("pass-count");
+        const timerElement = document.getElementById("timer");
+        const gameOverElement = document.getElementById("game-over");
+        const durationSelect = document.getElementById("duration-select");
+        const kelimeCountSelect = document.getElementById("kelime-count-select");
+        const passCountSelect = document.getElementById("pass-count-select");
+        const difficultySelect = document.getElementById("difficulty-select");
+        const correctKeyInput = document.getElementById("correct-key");
+        const incorrectKeyInput = document.getElementById("incorrect-key");
+        const passKeyInput = document.getElementById("pass-key");
+        const soundToggle = document.getElementById("sound-toggle");
+        const soundSetSelect = document.getElementById("sound-set-select");
+        const themeSelect = document.getElementById("theme-select");
+        const startButton = document.getElementById("start-button");
+        const quickStartButton = document.getElementById("quick-start-button");
+        const clearHistoryButton = document.getElementById("clear-history-button");
+        const exportButton = document.getElementById("export-button");
+        const howToPlayButton = document.getElementById("how-to-play-button");
+        const backToSettingsButton = document.getElementById("back-to-settings-button");
+        const pauseButton = document.getElementById("pause-button");
+        const fullscreenButton = document.getElementById("fullscreen-button");
+        const touchLeft = document.getElementById("touch-left");
+        const touchRight = document.getElementById("touch-right");
+        const touchMiddle = document.getElementById("touch-middle");
+        const touchControls = document.getElementById("touch-controls");
+        const progressBar = document.getElementById("progress");
+        const loadingIndicator = document.getElementById("loading");
+
+        // Ses efektleri
+        const soundSets = {
+            classic: {
+                correct: "https://www.soundjay.com/buttons/beep-01a.mp3",
+                incorrect: "https://www.soundjay.com/buttons/beep-02.mp3",
+                pass: "https://www.soundjay.com/buttons/beep-03.mp3",
+                start: "https://www.soundjay.com/misc/sounds/transition-swoosh-02.mp3",
+                end: "https://www.soundjay.com/misc/sounds/game-over-02.mp3"
+            },
+            fun: {
+                correct: "https://www.soundjay.com/misc/sounds/positive-beep-01.mp3",
+                incorrect: "https://www.soundjay.com/misc/sounds/negative-beep-01.mp3",
+                pass: "https://www.soundjay.com/misc/sounds/click-01.mp3",
+                start: "https://www.soundjay.com/misc/sounds/magic-wand-01.mp3",
+                end: "https://www.soundjay.com/misc/sounds/sad-trombone-01.mp3"
+            },
+            minimal: {
+                correct: "https://www.soundjay.com/buttons/sounds/button-09.mp3",
+                incorrect: "https://www.soundjay.com/buttons/sounds/button-10.mp3",
+                pass: "https://www.soundjay.com/buttons/sounds/button-11.mp3",
+                start: "https://www.soundjay.com/buttons/sounds/button-12.mp3",
+                end: "https://www.soundjay.com/buttons/sounds/button-13.mp3"
+            }
+        };
+        let currentSoundSet = soundSets.classic;
+        let correctSound = new Audio(currentSoundSet.correct);
+        let incorrectSound = new Audio(currentSoundSet.incorrect);
+        let passSound = new Audio(currentSoundSet.pass);
+        let gameStartSound = new Audio(currentSoundSet.start);
+        let gameEndSound = new Audio(currentSoundSet.end);
+
+        // Süre seçenekleri
+        for (let i = 10; i <= 300; i++) {
+            const option = document.createElement("option");
+            option.value = i;
+            option.textContent = i;
+            if (i === 100) option.selected = true;
+            durationSelect.appendChild(option);
+        }
+
+        // Kelime sayısı seçenekleri
+        for (let i = 10; i <= 500; i += 10) {
+            const option = document.createElement("option");
+            option.value = i;
+            option.textContent = i;
+            if (i === 100) option.selected = true;
+            kelimeCountSelect.appendChild(option);
+        }
+
+        // Pas sayısı seçenekleri
+        for (let i = 1; i <= 50; i++) {
+            const option = document.createElement("option");
+            option.value = i;
+            option.textContent = i;
+            if (i === 10) option.selected = true;
+            passCountSelect.appendChild(option);
+        }
+
+        // JSON verisini yükle
+        function loadKelimelerFromJSON() {
+            kelimeler = { simple: [], medium: [], hard: [] };
+            tanımlar = { simple: {}, medium: {}, hard: {} };
+            kullanılanKelimeler = { simple: new Set(), medium: new Set(), hard: new Set() };
+            kelimeData.forEach(row => {
+                const kategori = row.kategori.toLowerCase();
+                if (["simple", "medium", "hard"].includes(kategori)) {
+                    kelimeler[kategori].push(row.kelime);
+                    tanımlar[kategori][row.kelime] = row.tanım || "Tanım belirtilmemiş";
+                    // Hata ayıklama için tanım eklenmesini logla
+                    console.log(`Kelime: ${row.kelime}, Kategori: ${kategori}, Tanım: ${tanımlar[kategori][row.kelime]}`);
+                }
+            });
+            if (Object.values(kelimeler).every(arr => arr.length === 0)) {
+                alert("JSON verisinde geçerli kelime veya kategori bulunamadı!");
+            }
+        }
+
+        // Tema değiştirme
+        themeSelect.addEventListener("change", () => {
+            document.body.className = themeSelect.value;
+        });
+
+        // Ses seti değiştirme
+        soundSetSelect.addEventListener("change", () => {
+            currentSoundSet = soundSets[soundSetSelect.value];
+            correctSound = new Audio(currentSoundSet.correct);
+            incorrectSound = new Audio(currentSoundSet.incorrect);
+            passSound = new Audio(currentSoundSet.pass);
+            gameStartSound = new Audio(currentSoundSet.start);
+            gameEndSound = new Audio(currentSoundSet.end);
+        });
+
+        // Geçmişi sil
+        clearHistoryButton.addEventListener("click", () => {
+            if (confirm("Geçmiş sonuçları silmek istediğinize emin misiniz?")) {
+                gameHistory = [];
+                localStorage.setItem("gameHistory", JSON.stringify(gameHistory));
+                alert("Geçmiş silindi!");
+            }
+        });
+
+        // Sonuçları dışa aktar
+        exportButton.addEventListener("click", () => {
+            const data = JSON.stringify(gameHistory);
+            const blob = new Blob([data], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "oyun_gecmisi.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Nasıl Oynanır sayfasına geçiş
+        howToPlayButton.addEventListener("click", () => {
+            settingsContainer.style.display = "none";
+            howToPlayContainer.style.display = "block";
+        });
+
+        // Ayarlar’a dönüş
+        backToSettingsButton.addEventListener("click", () => {
+            howToPlayContainer.style.display = "none";
+            settingsContainer.style.display = "block";
+        });
+
+        // Ses kontrolü
+        soundToggle.addEventListener("change", () => {
+            soundEnabled = soundToggle.checked;
+        });
+
+        // Hızlı başlat
+        quickStartButton.addEventListener("click", () => {
+            if (Object.values(kelimeler).every(arr => arr.length === 0)) {
+                alert("Kelime verisi yüklenemedi!");
+                return;
+            }
+            startButton.click();
+        });
+
+        // Oyunu başlat
+        startButton.addEventListener("click", () => {
+            const selectedKelimeCount = parseInt(kelimeCountSelect.value);
+            timeLeft = parseInt(durationSelect.value);
+            passCount = parseInt(passCountSelect.value);
+            initialPassCount = passCount;
+            const difficulty = difficultySelect.value;
+
+            if (isNaN(timeLeft) || timeLeft < 10 || timeLeft > 300) {
+                alert("Geçerli bir süre seçin (10-300 saniye)!");
+                return;
+            }
+
+            if (correctKeyInput.value === incorrectKeyInput.value || correctKeyInput.value === passKeyInput.value || incorrectKeyInput.value === passKeyInput.value) {
+                alert("Doğru, yanlış ve pas tuşları farklı olmalı!");
+                return;
+            }
+
+            loadKelimelerFromJSON();
+
+            if (Object.values(kelimeler).every(arr => arr.length === 0)) {
+                alert("Kelime verisi bulunamadı!");
+                return;
+            }
+
+            let availableKelimeler = [];
+            if (difficulty === "random") {
+                const kategoriler = ["simple", "medium", "hard"];
+                let tempKelimeler = { simple: [], medium: [], hard: [] };
+                kategoriler.forEach(kategori => {
+                    tempKelimeler[kategori] = kelimeler[kategori].filter(kelime => !kullanılanKelimeler[kategori].has(kelime));
+                    if (tempKelimeler[kategori].length === 0) {
+                        kullanılanKelimeler[kategori].clear();
+                        tempKelimeler[kategori] = kelimeler[kategori].slice();
+                    }
+                });
+
+                for (let i = 0; i < selectedKelimeCount; i++) {
+                    const kategori = kategoriler[i % 3];
+                    if (tempKelimeler[kategori].length > 0) {
+                        const index = Math.floor(Math.random() * tempKelimeler[kategori].length);
+                        const kelime = tempKelimeler[kategori].splice(index, 1)[0];
+                        availableKelimeler.push({ text: kelime, kategori });
+                    } else {
+                        alert(`${kategori} kategorisinde kelime kalmadı, sıfırlanıyor.`);
+                        kullanılanKelimeler[kategori].clear();
+                        tempKelimeler[kategori] = kelimeler[kategori].slice();
+                        i--;
+                    }
+                }
+            } else {
+                availableKelimeler = kelimeler[difficulty].filter(kelime => !kullanılanKelimeler[difficulty].has(kelime)).map(kelime => ({ text: kelime, kategori: difficulty }));
+                if (availableKelimeler.length < selectedKelimeCount) {
+                    alert(`Yeterli ${difficulty} kelime yok! Kalan: ${availableKelimeler.length}. Kelimeler sıfırlanıyor.`);
+                    kullanılanKelimeler[difficulty].clear();
+                    availableKelimeler = kelimeler[difficulty].map(kelime => ({ text: kelime, kategori: difficulty }));
+                }
+            }
+
+            if (availableKelimeler.length < selectedKelimeCount) {
+                alert(`Yeterli kelime yok! Mevcut: ${availableKelimeler.length}, İstenen: ${selectedKelimeCount}`);
+                return;
+            }
+
+            oyunKelimeleri = availableKelimeler.slice(0, selectedKelimeCount);
+            oyunKelimeleri.forEach(kelime => kullanılanKelimeler[kelime.kategori].add(kelime.text));
+
+            settingsContainer.style.display = "none";
+            gameContainer.style.display = "block";
+            currentKelimeIndex = 0;
+            correctCount = { simple: 0, medium: 0, hard: 0 };
+            incorrectCount = { simple: 0, medium: 0, hard: 0 };
+            streak = 0;
+            fastestResponse = Infinity;
+            missedKelimeler = [];
+            correctScoreElement.textContent = "Doğru: 0";
+            incorrectScoreElement.textContent = "Yanlış: 0";
+            passCountElement.textContent = `Pas: ${passCount}`;
+            gameOverElement.style.display = "none";
+            kelimeElement.style.display = "block";
+            timerElement.style.display = "block";
+            passCountElement.style.display = "block";
+            pauseButton.style.display = "block";
+            fullscreenButton.style.display = "block";
+            touchControls.style.display = window.innerWidth <= 600 ? "block" : "none";
+            if (soundEnabled) gameStartSound.play();
+            startTimer();
+            showKelime();
+        });
+
+        // Tam ekran modu
+        fullscreenButton.addEventListener("click", () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+                fullscreenButton.textContent = "Tam Ekran";
+            } else {
+                gameContainer.requestFullscreen();
+                fullscreenButton.textContent = "Tam Ekranı Kapat";
+            }
+        });
+
+        document.addEventListener("fullscreenchange", () => {
+            fullscreenButton.textContent = document.fullscreenElement ? "Tam Ekranı Kapat" : "Tam Ekran";
+        });
+
+        // Duraklatma
+        pauseButton.addEventListener("click", () => {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? "Devam Et" : "Duraklat";
+            if (isPaused) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                gameContainer.style.opacity = "0.5";
+            } else {
+                startTimer();
+                gameContainer.style.opacity = "1";
+            }
+        });
+
+        // Tekrar oyna
+        function replayGame() {
+            settingsContainer.style.display = "block";
+            gameContainer.style.display = "none";
+            if (document.fullscreenElement) document.exitFullscreen();
+            currentPlayer = 1;
+        }
+
+        // Yeni kelime göster
+        function showKelime() {
+            if (oyunKelimeleri.length === 0 || currentKelimeIndex >= oyunKelimeleri.length || timeLeft <= 0) {
+                endGame();
+                return;
+            }
+            kelimeElement.textContent = oyunKelimeleri[currentKelimeIndex].text;
+            kelimeElement.classList.remove("correct", "incorrect", "pass");
+            kelimeStartTime = Date.now();
+            updateProgress();
+        }
+
+        // İlerleme çubuğu
+        function updateProgress() {
+            const percent = ((oyunKelimeleri.length - currentKelimeIndex) / oyunKelimeleri.length) * 100;
+            progressBar.style.width = `${percent}%`;
+        }
+
+        // Oyunu bitir
+        function endGame() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            kelimeElement.style.display = "none";
+            timerElement.style.display = "none";
+            passCountElement.style.display = "none";
+            pauseButton.style.display = "none";
+            fullscreenButton.style.display = "none";
+            touchControls.style.display = "none";
+            gameOverElement.style.display = "block";
+            if (soundEnabled) gameEndSound.play();
+
+            const totalCorrectPoints = correctCount.simple * 1 + correctCount.medium * 2 + correctCount.hard * 3;
+            const streakBonus = Math.floor(streak / 5) * 5;
+            const fastBonus = Object.values(correctCount).reduce((sum, count) => sum + count, 0) * 0.5;
+            const totalScore = totalCorrectPoints - (Object.values(incorrectCount).reduce((sum, count) => sum + count, 0)) - (initialPassCount - passCount) * 0.5 + streakBonus + fastBonus;
+            const usedPassCount = initialPassCount - passCount;
+
+            playerScores[currentPlayer].correct.simple += correctCount.simple;
+            playerScores[currentPlayer].correct.medium += correctCount.medium;
+            playerScores[currentPlayer].correct.hard += correctCount.hard;
+            playerScores[currentPlayer].incorrect.simple += incorrectCount.simple;
+            playerScores[currentPlayer].incorrect.medium += incorrectCount.medium;
+            playerScores[currentPlayer].incorrect.hard += incorrectCount.hard;
+            playerScores[currentPlayer].pass += usedPassCount;
+            playerScores[currentPlayer].total += totalScore;
+
+            gameHistory.push({
+                player: currentPlayer,
+                correct: { ...correctCount },
+                incorrect: { ...incorrectCount },
+                pass: usedPassCount,
+                total: totalScore,
+                timestamp: new Date().toLocaleString("tr-TR")
+            });
+            localStorage.setItem("gameHistory", JSON.stringify(gameHistory));
+
+            let historyTable = `
+                <table id="history-table">
+                    <tr>
+                        <th>Oyuncu</th>
+                        <th>Tarih</th>
+                        <th>Doğru</th>
+                        <th>Yanlış</th>
+                        <th>Pas</th>
+                        <th>Toplam Puan</th>
+                    </tr>
+            `;
+            gameHistory.forEach(record => {
+                historyTable += `
+                    <tr>
+                        <td>${record.player}</td>
+                        <td>${record.timestamp}</td>
+                        <td>${record.correct.simple + record.correct.medium + record.correct.hard}</td>
+                        <td>${record.incorrect.simple + record.incorrect.medium + record.incorrect.hard}</td>
+                        <td>${record.pass}</td>
+                        <td>${record.total}</td>
+                    </tr>
+                `;
+            });
+            historyTable += "</table>";
+
+            let leaderboard = "<h3>Lider Tablosu</h3><ol>";
+            gameHistory.sort((a, b) => b.total - a.total).slice(0, 5).forEach(record => {
+                leaderboard += `<li>Oyuncu ${record.player}: ${record.total} puan (${record.timestamp})</li>`;
+            });
+            leaderboard += "</ol>";
+
+            // Hata ayıklama için missedKelimeler ve tanımlar nesnesini logla
+            console.log("Missed Kelimeler:", missedKelimeler);
+            console.log("Tanımlar:", tanımlar);
+
+            let missedKelimelerList = missedKelimeler.length > 0 ? `
+                <h3>Kaçırdığın Kelimeler</h3>
+                <ul>
+                    ${missedKelimeler.map(w => {
+                        const tanım = tanımlar[w.kategori][w.text] || "Tanım belirtilmemiş";
+                        console.log(`Kelime: ${w.text}, Kategori: ${w.kategori}, Tanım: ${tanım}`);
+                        return `<li>${w.text} (${w.kategori}) - ${tanım}</li>`;
+                    }).join("")}
+                </ul>
+            ` : "";
+
+            gameOverElement.innerHTML = `
+                <h2>Oyun Bitti! (Oyuncu ${currentPlayer})</h2>
+                <div style="font-size: 2em; margin: 10px 0;">Toplam Puan: ${totalScore.toFixed(1)}</div>
+                <div style="font-size: 1.2em; margin: 5px 0;">
+                    <h3>Puan Detayları</h3>
+                    <div>Basit Doğru: ${correctCount.simple} (+${correctCount.simple * 1})</div>
+                    <div>Orta Doğru: ${correctCount.medium} (+${correctCount.medium * 2})</div>
+                    <div>Zor Doğru: ${correctCount.hard} (+${correctCount.hard * 3})</div>
+                    <div>Yanlış: ${incorrectCount.simple + incorrectCount.medium + incorrectCount.hard} (-${incorrectCount.simple + incorrectCount.medium + incorrectCount.hard})</div>
+                    <div>Pas: ${usedPassCount} (-${usedPassCount * 0.5})</div>
+                    <div>5 Doğru Streak Bonusu: ${streakBonus}</div>
+                    <div>Hızlı Cevap Bonusu: ${fastBonus.toFixed(1)}</div>
+                </div>
+                <div style="font-size: 1.2em; margin: 20px 0;">
+                    <h3>Performans Özeti</h3>
+                    <div>En hızlı doğru cevabın: ${fastestResponse === Infinity ? "Yok" : (fastestResponse / 1000).toFixed(2)} saniye</div>
+                    <div>Pas oranı: ${usedPassCount / (correctCount.simple + correctCount.medium + correctCount.hard + incorrectCount.simple + incorrectCount.medium + incorrectCount.hard + usedPassCount || 1).toFixed(2)}%</div>
+                </div>
+                ${missedKelimelerList}
+                <button id="replay-button">Tekrar Oyna</button>
+                <button id="next-player-button">Sonraki Oyuncu</button>
+                <button id="share-button">Puanı Paylaş</button>
+                <br><br>
+                ${leaderboard}
+                <h3>Geçmiş Sonuçlar</h3>
+                ${historyTable}
+            `;
+            document.getElementById("replay-button").addEventListener("click", replayGame);
+            document.getElementById("next-player-button").addEventListener("click", () => {
+                currentPlayer++;
+                playerScores[currentPlayer] = { correct: { simple: 0, medium: 0, hard: 0 }, incorrect: { simple: 0, medium: 0, hard: 0 }, pass: 0, total: 0 };
+                startButton.click();
+            });
+            document.getElementById("share-button").addEventListener("click", () => {
+                const text = `Kelime Oyununda ${totalScore.toFixed(1)} puan aldım! Sen de dene!`;
+                navigator.share?.({ text }) || alert("Paylaş: " + text);
+            });
+        }
+
+        // Puan güncelle
+        function updateScore(isCorrect, isPass = false) {
+            const responseTime = Date.now() - kelimeStartTime;
+            const kategori = oyunKelimeleri[currentKelimeIndex].kategori;
+            let fastBonus = 0;
+            if (responseTime <= 2000 && isCorrect) {
+                fastBonus = 0.5;
+                fastestResponse = Math.min(fastestResponse, responseTime);
+            }
+            if (isCorrect) {
+                correctCount[kategori]++;
+                streak++;
+                if (streak >= 5) {
+                    streak = 0;
+                }
+                correctScoreElement.textContent = `Doğru: ${correctCount.simple + correctCount.medium + correctCount.hard}`;
+                if (soundEnabled) correctSound.play();
+            } else if (isPass) {
+                passCount--;
+                missedKelimeler.push({ text: oyunKelimeleri[currentKelimeIndex].text, kategori });
+                streak = 0;
+                passCountElement.textContent = `Pas: ${passCount}`;
+                if (soundEnabled) passSound.play();
+            } else {
+                incorrectCount[kategori]++;
+                missedKelimeler.push({ text: oyunKelimeleri[currentKelimeIndex].text, kategori });
+                streak = 0;
+                incorrectScoreElement.textContent = `Yanlış: ${incorrectCount.simple + incorrectCount.medium + incorrectCount.hard}`;
+                if (soundEnabled) incorrectSound.play();
+            }
+            return fastBonus;
+        }
+
+        // Süre sayacı
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            timerElement.textContent = `Süre: ${timeLeft}`;
+            timerElement.classList.remove("low");
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = `Süre: ${timeLeft}`;
+                
+                if (timeLeft <= 10) {
+                    timerElement.classList.add("low");
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        // Klavye olayları
+        document.addEventListener("keydown", (event) => {
+            if (isPaused || oyunKelimeleri.length === 0 || currentKelimeIndex >= oyunKelimeleri.length || timeLeft <= 0) return;
+
+            const correctKey = correctKeyInput.value.toLowerCase();
+            const incorrectKey = incorrectKeyInput.value.toLowerCase();
+            const passKey = passKeyInput.value.toLowerCase() || " ";
+
+            if (event.key.toLowerCase() === correctKey) {
+                kelimeElement.classList.add("correct");
+                updateScore(true);
+                currentKelimeIndex++;
+                setTimeout(showKelime, 300);
+            } else if (event.key.toLowerCase() === incorrectKey) {
+                kelimeElement.classList.add("incorrect");
+                updateScore(false);
+                currentKelimeIndex++;
+                setTimeout(showKelime, 300);
+            } else if (event.key.toLowerCase() === passKey && passCount > 0) {
+                kelimeElement.classList.add("pass");
+                updateScore(false, true);
+                currentKelimeIndex++;
+                setTimeout(showKelime, 300);
+            }
+        });
+
+        // Dokunmatik kontroller
+        touchLeft.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            if (isPaused || oyunKelimeleri.length === 0 || currentKelimeIndex >= oyunKelimeleri.length || timeLeft <= 0) return;
+            touchLeft.style.background = "rgba(0, 255, 0, 0.5)";
+            setTimeout(() => touchLeft.style.background = "green", 300);
+            kelimeElement.classList.add("correct");
+            updateScore(true);
+            currentKelimeIndex++;
+            setTimeout(showKelime, 300);
+        });
+        touchRight.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            if (isPaused || oyunKelimeleri.length === 0 || currentKelimeIndex >= oyunKelimeleri.length || timeLeft <= 0) return;
+            touchRight.style.background = "rgba(255, 0, 0, 0.5)";
+            setTimeout(() => touchRight.style.background = "red", 300);
+            kelimeElement.classList.add("incorrect");
+            updateScore(false);
+            currentKelimeIndex++;
+            setTimeout(showKelime, 300);
+        });
+        touchMiddle.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            if (isPaused || oyunKelimeleri.length === 0 || currentKelimeIndex >= oyunKelimeleri.length || timeLeft <= 0 || passCount <= 0) return;
+            touchMiddle.style.background = "rgba(0, 0, 255, 0.5)";
+            setTimeout(() => touchMiddle.style.background = "blue", 300);
+            kelimeElement.classList.add("pass");
+            updateScore(false, true);
+            currentKelimeIndex++;
+            setTimeout(showKelime, 300);
+        });
+    </script>
+</body>
+</html>
